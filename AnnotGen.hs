@@ -342,7 +342,7 @@ ag_TmemX (a,b,gamma,n,sol) (e,m,ei) = let
   c_g = makeEqual_all g ((JST0P_Function o tx nf tp nfp),I 0,I 0)
   c_st = makeSubtype te o
   c_ti = makeSubtype_list ti tx
-  in (a3,b3,tp,g2,[npost],concat[c,c_n1,c_g,c_ti,c_st,c_e,c_ei])
+  in (a3,b3,tp,g2,[npost],concat[c,c_g,c_ti,c_st,c_e,c_ei])
 
 ag_TfunX :: Con_in -> ([JSNode],[[JSNode]]) -> Con_out
 ag_TfunX (a,b,gamma,n,sol) (f,ei) = let
@@ -450,7 +450,7 @@ ag_funStmt (a,b,gamma,n,sol) (f,xi,e) = let
   -- put together results
   c_tf = makeEqual_all tf ((JST0P_Function tThis tx nf txp nfp),I 0,I 0)
   c = [Gt [nf] [ne,I ne1,I ne2],Gt [nfp] nep]
-  in (a4,b4,JST0P_None,gamma,n,concat [c_tf,c,ce])
+  in (a4,b4,(JST0P_None,I 0,I 0),gamma,n,concat [c_tf,c,ce])
 
 -- ag_TobjLit :: Con_in -> [(String,[JSNode])] -> Con_out
 -- ag_TobjLit (a,b,g,n,sol) fields = let
