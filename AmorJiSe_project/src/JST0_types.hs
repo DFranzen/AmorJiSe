@@ -98,7 +98,7 @@ instance Show Type where
 
   show (JST0_Function t1 t2 t3) =  (show t1) ++ "⨯" ++ (show t2) ++ "->" ++ (show t3)
 
-  show (JST0_TV vid des) = "[[" ++ (show des) ++ "]]_" ++ (show vid)
+  show (JST0_TV vid des) = "[[" ++ des ++ "]]_" ++ (show vid)
 
   show (JST0_Ret t) = "Return(" ++ (show t) ++ ")"
 
@@ -112,7 +112,7 @@ data HL_Type = HL_Function
              | HL_Object
              | HL_simple Type
              | HL_at_most Type
-             | HL_taged
+             | HL_return
              | HL_None
           deriving Eq
 
@@ -121,7 +121,7 @@ instance Show HL_Type where
   show (HL_Object) = "{}"
   show (HL_simple t) = "S(" ++ (show t) ++ ")"
   show (HL_at_most t) = "S_<(" ++ (show t) ++ ")"
-  show (HL_taged) = "t"
+  show (HL_return) = "R"
   show (HL_None) = "_"
 
 
@@ -204,30 +204,39 @@ is_castable _ _ = False
 -- JST0_None is the maximal type for everything
 -- JST0_Object _ [] is the maximal object Type
 min_type :: Type -> Type -> Type
-min_type JST0_None t = t
-min_type t JST0_None = t
-min_type JST0_Int JST0_Int = JST0_Int
-min_type JST0_Bool JST0_Bool = JST0_Bool
-min_type (JST0_String _) (JST0_String s2) = JST0_String s2
-min_type (JST0_Object a1 l) (JST0_Object a2 lp) = let
+min_type  t1 t2 | trace 35 ("MinType(Ent): " ++ show t1 ++ "+" ++ show t2) False = undefined
+min_type t1 t2 =mintype [] t1 t2
+
+-- Auxiliary function to compute the minimal type.
+-- Also carries a list of equalised Alpha indices
+mintype :: [(Int,Int)] -> Type -> Type -> Type
+mintype eq t1 t2 | trace 35 ("MinType: " ++ show t1 ++ "+" ++ show t2) False = undefined
+mintype eq JST0_None t = t
+mintype eq t JST0_None = t
+mintype eq JST0_Int JST0_Int = JST0_Int
+mintype eq JST0_Bool JST0_Bool = JST0_Bool
+mintype eq (JST0_String _) (JST0_String s2) = JST0_String s2
+mintype eq (JST0_Object a1 l) (JST0_Object a2 lp) = let
   (JST0_Object _ l1) = swap_alpha (JST0_Object a1 l) a1 (get_gamma a2)
   (JST0_Object _ l2) = swap_alpha (JST0_Object a2 lp) a2 (get_gamma a2)
-  lres = min_list_type l1 l2
+  lres = min_list_type eq l1 l2
   obj = JST0_Object a2 lres
   in swap_alpha obj (get_gamma a2) a2
-min_type (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p) =
-  min_type_function (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p)
+mintype eq (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p) =
+  mintype_function eq (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p)
 --  | (isEqual t1 t1p) && (isEqual_list t2 t2p) && (isEqual t3 t3p) = JST0_Function t1 t2 t3
---  (JST0_Function (min_type_func t1 t1p) (min_type_func_list t2 t2p) (min_type_func t3 t3p))
-min_type (JST0_Ret t1) (JST0_Ret t2) = JST0_Ret (min_type t1 t2)
-min_type (JST0_Alpha a) (JST0_Alpha ap) | a==ap = (JST0_Alpha a)
-min_type a b | error ("Minimal type of non compatible types: " ++ show a ++ "<->" ++ show b) = undefined
-             | otherwise = undefined
+--  (JST0_Function (mintype_func t1 t1p) (mintype_func_list t2 t2p) (mintype_func t3 t3p))
+mintype eq (JST0_Ret t1) (JST0_Ret t2) = JST0_Ret (mintype eq t1 t2)
+mintype eq (JST0_Alpha a) (JST0_Alpha ap) = (JST0_Alpha ap)
+mintype eq (JST0_Alpha a) (JST0_Object ap l) | a==ap = (JST0_Object ap l)
+mintype eq (JST0_Object ap l) (JST0_Alpha a) | a==ap = (JST0_Object ap l)
+mintype eq a b | error ("Minimal type of non compatible types: " ++ show a ++ "<->" ++ show b) = undefined
+               | otherwise = undefined
 
-min_type_function :: Type -> Type -> Type
-min_type_function (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p) =
+mintype_function :: [(Int,Int)] -> Type -> Type -> Type
+mintype_function eq (JST0_Function t1 t2 t3) (JST0_Function t1p t2p t3p) =
   JST0_Function (eqOrNone t1 t1p) (eqOrNone_list t2 t2p) (eqOrNone t3 t3p)
-min_type_function _t1 _t2 | error ("Functions expected") = undefined
+mintype_function eq _t1 _t2 | error ("Functions expected") = undefined
                           | otherwise = undefined
 
 eqOrNone :: Type -> Type -> Type
@@ -245,12 +254,12 @@ eqOrNone_list (t1:ts1) (t2:ts2) = (eqOrNone t1 t2):(eqOrNone_list ts1 ts2)
 --eqOrNone_list _l1 _l2 | error ("Not compatible argument lists") = undefined
 --                      | otherwise = undefined
 
-min_list_type :: Members -> Members -> Members
-min_list_type l1 l2 = let s1 = Map.keysSet l1
-                          s2 = Map.keysSet l2
-                          s = Set.union s1 s2
-                      in min_list_those l1 l2 (Set.toList s)
-
+min_list_type :: [(Int,Int)] -> Members -> Members -> Members
+min_list_type eq l1 l2 = let s1 = Map.keysSet l1
+                             s2 = Map.keysSet l2
+                             s = Set.union s1 s2
+                         in min_list_those l1 l2 (Set.toList s)
+                         
 --return the Map with all minimum types of m1 m2 with the keys s1
 -- Arguments:
 --   - m1, m2: Member lists
@@ -279,6 +288,7 @@ min_list_this m1 m2 s = let (t1,f1) = case (Map.lookup s m1) of
 
 -- Minimal FieldType \bullet\le\circ
 min_field_type :: FieldType -> FieldType -> FieldType
+min_field_type f1 f2 | trace 35 ("min_field_type" ++ show f1 ++ "," ++ show f2) False = undefined
 min_field_type Definite _ = Definite
 min_field_type _ Definite = Definite
 min_field_type Potential Potential = Potential
@@ -351,6 +361,7 @@ is_Simple :: Type -> Bool
 is_Simple JST0_Int = True
 is_Simple JST0_Bool = True
 is_Simple (JST0_String _) = True
+is_Simple (JST0_Ret t) = is_Simple t
 is_Simple _ = False
 
 is_TV :: Type -> Bool
@@ -392,7 +403,7 @@ get_HL_type (JST0_Function _ _ _) = HL_Function
 get_HL_type (JST0_Int) = HL_simple JST0_Int
 get_HL_type (JST0_Bool) = HL_simple JST0_Bool
 get_HL_type (JST0_String s) = HL_simple (JST0_String s)
-get_HL_type (JST0_Ret _t) = HL_taged
+get_HL_type (JST0_Ret t) = HL_return
 get_HL_type _ = HL_None
 
 hl_to_at_least :: HL_Type -> HL_Type

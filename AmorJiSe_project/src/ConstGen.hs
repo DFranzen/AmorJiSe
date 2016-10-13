@@ -3,8 +3,9 @@ module ConstGen (
 ) where
 
 import Language.JavaScript.Parser.AST
-import Language.JavaScript.Parser.AST
+import Language.JavaScript.Pretty.Printer
 import Language.JavaScript.Parser.SrcLocation
+
 
 --import Language.JavaScript.Parser.SrcLocation
 import JST0_types
@@ -13,6 +14,8 @@ import JST0_context
 import JST0_constrain
 
 import Debugging
+
+import Data.List as List
 
 import Conditionals
 import Extraction
@@ -26,14 +29,14 @@ type Con_in = (Int, Context)
 
 
 constGen :: Con_in -> JSNode -> Con_out
-constGen (_a,_gamma) _j | trace 10 "constGen" False = undefined
+constGen (_a,_gamma) j | trace 10 ("constGen" ++ (renderNodeToString j)) False = undefined
 constGen (a ,gamma ) j = let
   (a1,gamma1) = p1_Statement (a ,gamma ) j
   (a2,gamma2) = p2_Statement (a1,gamma1) j
   in cg_Statement (a2,gamma2) j
 
 cg_Statement :: Con_in -> JSNode -> Con_out
-cg_Statement (_a,_gamma) j | trace 10 ("Statement : " ++ (show j)) False = undefined
+cg_Statement (_a,_gamma) j | trace 10 ("Statement : " ++ (renderNodeToString j)) False = undefined
 cg_Statement (a,gamma) (NT n _l _c) | trace 30 "JSNode NT" True = cg_Statement (a,gamma) (NN n)
 cg_Statement (a,gamma) (NN n)
   -- boxes
@@ -78,7 +81,7 @@ cg_Exp_Stmt (a,gamma) js = let
 
 -- analyse an expression (Exp sequences have already been split up)
 cg_Expression :: Con_in -> [JSNode] -> Con_out
-cg_Expression (_a,_gamma) js | trace 10 ("Expression : " ++ show js) False = undefined
+cg_Expression (_a,_gamma) js | trace 10 ("Expression : " ++ renderExpressionToString js) False = undefined
 cg_Expression (a,gamma) js_dirty = let
   js = filter_irrelevant js_dirty
   res
@@ -137,7 +140,7 @@ cg_Exp_list (a,gamma) (js:jss) = let
 
 -- Analyse a list of variable definitions. The VarDecl head has already been extracted.
 cg_TVariables :: Con_in -> [JSNode] -> Con_out
-cg_TVariables (_a,_gamma) _e1 | trace 10 ("TVariables") False = undefined
+cg_TVariables (_a,_gamma) e | trace 10 ("TVariables" ++ renderExpressionToString e) False = undefined
 cg_TVariables (a,gamma) e = let 
   ([e1],e2) = split_comma e
   (a1,t1,gamma1,c_1) = cg_Statement (a ,gamma ) e1
@@ -150,11 +153,11 @@ cg_TVariables (a,gamma) e = let
 ----------------------------------------
 
 cg_empty :: Con_in -> Con_out
-cg_empty (_a,_gamma) | trace 10 "cg_empty" False = undefined
+cg_empty (_a,_gamma) | trace 10 "Tempty" False = undefined
 cg_empty (a,gamma) = (a,JST0_None,gamma,[])
 
 cg_Tnull :: Con_in -> Con_out
-cg_Tnull (_a,_gamma) | trace 10 ("Tnull\n") False = undefined
+cg_Tnull (_a,_gamma) | trace 10 ("Tnull") False = undefined
 cg_Tnull (a,gamma) = let
   -- create new TVs
   o = (JST0_TV a "Null Object")
@@ -164,15 +167,15 @@ cg_Tnull (a,gamma) = let
   in (a0,o,gamma,c)
 
 cg_Tint :: Con_in -> Con_out
-cg_Tint (_a,_gamma) | trace 10 ("cg_Tint") False = undefined
+cg_Tint (_a,_gamma) | trace 10 ("TIntLit") False = undefined
 cg_Tint (a,gamma) = (a,JST0_Int,gamma,[])
 
 cg_TboolLit :: Con_in -> Con_out
-cg_TboolLit (_a,_gamma) | trace 10 ("cg_BoolLit") False = undefined
+cg_TboolLit (_a,_gamma) | trace 10 ("TBoolLit") False = undefined
 cg_TboolLit (a,gamma) = (a,JST0_Bool,gamma,[])
 
 cg_TvarR :: Con_in -> String -> Con_out
-cg_TvarR (_a,_gamma) var | trace 10 ("cg_TvarR " ++ var) False = undefined
+cg_TvarR (_a,_gamma) var | trace 10 ("TvarR: " ++ var) False = undefined
 cg_TvarR (a,gamma) var = let
   -- create new variables
   t1 = (JST0_TV a (var ++ " copy to be stored back"))
@@ -192,10 +195,10 @@ cg_TvarR (a,gamma) var = let
   in (a0,t2,gamma1,c)
 
 cg_TvarW :: Con_in -> (String,[JSNode]) -> Con_out
-cg_TvarW (_a,_gamma) (x,_e) | trace 10 ("TvarW" ++ x) False = undefined
+cg_TvarW (_a,_gamma) (x,e) | trace 10 ("TvarW: " ++ x ++ "=" ++ renderExpressionToString e) False = undefined
 cg_TvarW (a,gamma) (x,e) = let
   -- create new variables
-  txasse = (JST0_TV a (x ++ "=" ++ show e))
+  txasse = (JST0_TV a (x ++ "=" ++ renderExpressionToString e))
   txp    = (JST0_TV (a+1) (x ++ " updated"))
   a0 = a + 2;
   -- infer types
@@ -211,10 +214,10 @@ cg_TvarW (a,gamma) (x,e) = let
   in (a1,txasse,gammap,concat[c_1,c])
 
 cg_TmemR :: Con_in -> ([JSNode],String) -> Con_out
-cg_TmemR (_a,_gamma) (_e,m) | trace 10 ("TmemR" ++ show m) False = undefined
+cg_TmemR (_a,_gamma) (e,m) | trace 10 ("TmemR: " ++ renderExpressionToString e ++ m) False = undefined
 cg_TmemR (a,gamma) (e,m) = let
   -- create new variables
-  t2 = JST0_TV a ("MemberRead " ++ show m)
+  t2 = JST0_TV a (renderExpressionToString e ++ "." ++ m)
   a0 = a+1
   -- infer type
   (a1,o,gamma1,c_1) = cg_Expression (a0,gamma) e
@@ -222,13 +225,12 @@ cg_TmemR (a,gamma) (e,m) = let
   in (a1,t2,gamma1,concat [c_1,c])
 
 cg_TmemW1 :: Con_in -> (String,String,[JSNode]) -> Con_out
-cg_TmemW1 (_a,_gamma) (var,m,_e) | trace 10 ("TmemW1 " ++ var ++ "." ++ m) False = undefined
+cg_TmemW1 (_a,_gamma) (var,m,e) | trace 10 ("TmemW1: " ++ var ++ "." ++ m ++ "=" ++ renderExpressionToString e) False = undefined
 cg_TmemW1 (a,gamma) (var,m,e) = let
   -- create new variables
   tm = (JST0_TV a (var ++ "." ++ m))
   txp = (JST0_TV (a+1) var)
-  txasse = (JST0_TV (a+2) (var ++ "." ++ m ++ "=e"))
-  --tmp = (JST0_TV (a+2) (var ++ "." ++ m))
+  txasse = (JST0_TV (a+2) (var ++ "." ++ m ++ "=" ++ renderExpressionToString e))
   a0 = a+3
   --infer type
   (a1,te,gamma1,c_1) = cg_Expression (a0,gamma) e
@@ -243,10 +245,10 @@ cg_TmemW1 (a,gamma) (var,m,e) = let
   in (a1,te,gamma2,concat [c_1,c])
 
 cg_TmemW2 :: Con_in -> ([JSNode],String,[JSNode]) -> Con_out
-cg_TmemW2 (_a,_gamma) (_e1,m,_e2) | trace 10 ("TmemW2 " ++ m) False = undefined
+cg_TmemW2 (_a,_gamma) (e1,m,e2) | trace 10 ("TmemW2: " ++ renderExpressionToString e1 ++ "." ++ m ++ "=" ++ renderExpressionToString e2) False = undefined
 cg_TmemW2 (a,gamma) (e1,m,e2) = let
   -- create new variables
-  tm = (JST0_TV a ("Member " ++ show m))
+  tm = JST0_TV a (renderExpressionToString e1 ++ "." ++ m ++ "=" ++ renderExpressionToString e2)
   a0 = a + 1
   -- infer typen
   (a1,o ,gamma1,c_1) = cg_Expression (a0,gamma ) e1
@@ -256,10 +258,10 @@ cg_TmemW2 (a,gamma) (e1,m,e2) = let
   in (a2,t2,gamma2,concat [c_1,c_2,c])
 
 cg_TmemX :: Con_in -> ([JSNode],String,[[JSNode]]) -> Con_out
-cg_TmemX (_a,_gamma) (_e,_m,_ei) | trace 10 ("TmemX") False = undefined
+cg_TmemX (_a,_gamma) (e,m,ei) | trace 10 ("TmemX: " ++ renderExpressionToString e ++ "." ++ show m ++ "(" ++ renderExpressionListToString ei ++ ")") False = undefined
 cg_TmemX (a,gamma) (e,m,ei) = let
   -- aquire new variables
-  f = (ex_code_list e) ++ m -- get identifier for the function
+  f = (renderExpressionToString e) ++ m -- get identifier for the function
   g = (JST0_TV a f)
   o = (JST0_TV (a+1) (f ++ "_memX_This"))
   tp = (JST0_TV (a+2) (f ++ "_memX_Ret"))
@@ -280,7 +282,7 @@ cg_TmemX (a,gamma) (e,m,ei) = let
   in (a3,tp,gamma2,concat[c,c_te,c_e,c_f,c_ei,c_arg])
 
 cg_TfunX :: Con_in -> ([JSNode],[[JSNode]]) -> Con_out
-cg_TfunX (_a,_gamma) (f,_ei) |trace 10 ("TfunX " ++ (show f)) False = undefined
+cg_TfunX (_a,_gamma) (f,ei) |trace 10 ("TfunX " ++ renderExpressionToString f ++ "(" ++ renderExpressionListToString ei ++ ")") False = undefined
 cg_TfunX (a,gamma) (f,ei) = let
   -- get function ID
   fid = "[" ++ (ex_fID f) ++ "]"
@@ -300,31 +302,30 @@ cg_TfunX (a,gamma) (f,ei) = let
   c_arg = makeSubtype_list ti tx
   in (a4,tp,gamma4,concat[c,c_ei,c_arg,c_f,c_g])
 
-cg_Tcond :: Con_in -> (JSNode,JSNode,JSNode) -> Con_out
-cg_Tcond (_a,_gamma) (_e1,_e2,_e3) | trace 10 ("Tcond") False = undefined
+cg_Tcond :: Con_in -> ([[JSNode]],JSNode,JSNode) -> Con_out
+cg_Tcond (_a,_gamma) (e1,e2,e3) | trace 10 ("Tcond: " ++ renderExpSeqToString e1 ++ "?" ++ renderNodeToString e2 ++ ":" ++ renderNodeToString e3) False = undefined
 cg_Tcond (a,gamma) (e1,e2,e3) = let
   -- create new variables
-  t = (JST0_TV a "Merge of if branches")
+--  t = JST0_TV a ("Merge: " ++ renderNodeToString e1 ++ "?" ++ renderNodeToString e2 ++ ":" ++ renderNodeToString e3)
   a0 = a+1
   -- infer type
-  (a1,tb,gamma1,c_1) = cg_Statement (a0,gamma ) e1
+  (a1,tb,gamma1,c_1) = cg_Exp_mult  (a0,gamma ) e1
   (a2,tt,gammat,c_2) = cg_Statement (a1,gamma1) e2
   (a3,tf,gammaf,c_3) = cg_Statement (a2,gamma1) e3
-  (c_G,gammar,a4) = context_min_constrain gammat gammaf a3
-  c = [SubType tb JST0_Bool,
-       SubType tf t,
-       SubType tt t
-      ]
-  in (a4,t,gammar,concat [c,c_1,c_2,c_3,c_G])
+  (a4,t,c_t) = merge_type a3 tt tf
+  (c_G,gammar,a5) | trace 35 ("Conditional results: " ++ show tb ++ "?" ++ show tt ++ ":" ++ show tf) True = context_min_constrain gammat gammaf a4
+  c = [SubType tb JST0_Bool]
+  in (a5,t,gammar,concat [c,c_1,c_2,c_3,c_t,c_G])
 
 cg_TvarD :: Con_in -> (String,[JSNode]) -> Con_out
-cg_TvarD (_a,_gamma) (var,_e) | trace 10 ("TvarD " ++ var) False = undefined
+cg_TvarD (_a,_gamma) (var,e) | trace 10 ("TvarD " ++ var ++ " " ++ renderExpressionToString e) False = undefined
+cg_TvarD (_a,_gamma) (var,e) | trace 30 ("TvarD " ++ var ++ ":" ++ (show e)) False = undefined
 cg_TvarD (a,gamma) (_var,e) = let
   (a1,t1,gamma1,c_1) = cg_Expression (a,gamma) e
   in (a1,JST0_None,gamma1,c_1)
 
 cg_funExpr :: Con_in -> (String,[String],JSNode) -> Con_out
-cg_funExpr (a,_gamma) (f,xi,_e) | trace 10 ("(" ++ show a ++ ")" ++ "FunExpr " ++ f ++ "(" ++ show xi ++ ")") False = undefined
+cg_funExpr (a,_gamma) (f,xi,_e) | trace 10 ("FunExpr: " ++ f ++ "(" ++ show xi ++ ")...") False = undefined
 cg_funExpr (a,gamma) (f,xi,e) = let
   -- define variables
   tThis = JST0_TV a (f ++ "_funD_This")
@@ -350,7 +351,7 @@ cg_funExpr (a,gamma) (f,xi,e) = let
   in (a4,tf,gammap,concat[c,ce])
 
 cg_funStmt :: Con_in -> (String,[String],JSNode) -> Con_out
-cg_funStmt (_a,_gamma) (f,xi,_e) | trace 10 ("Tfund " ++ f ++ "(" ++ show xi ++ ")") False = undefined
+cg_funStmt (_a,_gamma) (f,xi,_e) | trace 10 ("TfunStmt: " ++ f ++ "(" ++ show xi ++ ")...") False = undefined
 cg_funStmt (a,gamma) (f,xi,e) = let
     -- define variables
     tThis = JST0_TV a (f ++ "_funD_This")
@@ -371,10 +372,10 @@ cg_funStmt (a,gamma) (f,xi,e) = let
     in (a4,tf,gamma,concat[c,ce])
 
 cg_TobjLit :: Con_in -> [(String,[JSNode])] -> Con_out
-cg_TobjLit (_a,_gamma1) _fields | trace 10 ("TObjD") False = undefined
+cg_TobjLit (_a,_gamma1) fields | trace 10 ("TObjD: " ++ renderObjLitToString fields) False = undefined
 cg_TobjLit (a,gamma1) fields = let
   -- create TVs
-  o = JST0_TV a "objLit"
+  o = JST0_TV a (renderObjLitToString fields)
   a0 = a+1
   -- infer type
   (ap,types,gammakp1,c1) = cg_fields (a0,gamma1) fields
@@ -402,7 +403,7 @@ cg_Tfor (a,gamma) (e1,e2,e3,body) = let
 cg_OPPlus :: Con_in -> ([JSNode],[JSNode]) -> Con_out
 cg_OPPlus (_a,_gamma) (_js1,js2) | trace 10 ("OP+") False = undefined
 cg_OPPlus (a,gamma) (e1,e2) = let
-  t =JST0_TV a "Result +"
+  t =JST0_TV a (renderExpressionToString e1 ++ " +" ++ renderExpressionToString e2)
   a0 = a+1
   (a1,t1,gamma1,c_1) = cg_Expression (a0,gamma ) e1
   (a2,t2,gamma2,c_2) = cg_Expression (a1,gamma1) e2
@@ -460,7 +461,7 @@ cg_OPIntPF (a,gamma) js = let
 
 cg_OPCond :: Con_in -> ([[JSNode]] ,[[JSNode]],[[JSNode]]) -> Con_out
 cg_OPCond (a,gamma) (cond,true,false) = let
-  t = JST0_TV a ("Result OP?")
+  t = JST0_TV a ("T(" ++ renderExpressionListToString cond ++ " ? " ++ renderExpressionListToString true ++ " : " ++ renderExpressionListToString false++")")
   a0 = a+1
   (a1,tb,gamma1,c_b) = cg_Exp_mult (a0,gamma ) cond
   (a2,tt,gammat,c_t) = cg_Exp_mult (a1,gamma1) true
@@ -472,14 +473,15 @@ cg_OPCond (a,gamma) (cond,true,false) = let
   in (a4,t,gammar,concat[c_b,c_f,c_t,c_G,c])
 
 cg_TstringLit :: Con_in -> String -> Con_out
-cg_TstringLit (_a,_gamma) s | trace 10 ("StringD: " ++ s) False = undefined
+cg_TstringLit (_a,_gamma) s | trace 10 ("TStringD: " ++ s) False = undefined
 cg_TstringLit (a,gamma) _s =
   (a,JST0_String "",gamma,[])
 
 cg_Treturn :: Con_in -> [[JSNode]] -> Con_out
-cg_Treturn (_a,_gamma) _js | trace 10 ("Return: ") False = undefined
+cg_Treturn (_a,_gamma) js | trace 10 ("TReturn: (" ++ renderExpressionListToString js ++ ")") False = undefined
 cg_Treturn (a,gamma) js = let
-  (ap,t,gp,cp) = cg_Exp_mult (a,gamma) js
+  (a1,t,gp,cp) = cg_Exp_mult (a,gamma) js
+  ap | trace 35 ("Return type (" ++ renderExpressionListToString js ++ "): " ++ show t) True = (a1+1)-1
   in (ap,JST0_Ret t,gp,cp)
                             
 ----------------------------------------
@@ -524,7 +526,7 @@ type P2_in = (Int,Context)
 type P2_out = (Int,Context)
 
 p2_Statement :: P2_in -> JSNode -> P2_out
-p2_Statement (_a,_gamma) j | trace 10 ("p2_JSNode : " ++ (show j)) False = undefined
+p2_Statement (_a,_gamma) j | trace 10 ("p2_Statement : " ++ renderNodeToString j) False = undefined
 p2_Statement (a,gamma) (NT n _l _c) = p2_Statement (a,gamma) (NN n)
 p2_Statement (a,gamma) (NN n)
   -- boxes
@@ -620,12 +622,15 @@ p2_TmemX (a,gamma) (e1,_m,ei) = p2_Exp_mult (a,gamma) (e1:ei)
 p2_TfunX :: P2_in -> ([JSNode],[[JSNode]]) -> P2_out
 p2_TfunX (a,gamma) (ef,ei) = p2_Exp_mult (a,gamma) (ef:ei)
 
-p2_Tcond :: P2_in -> (JSNode,JSNode,JSNode) -> P2_out
-p2_Tcond (a,gamma) (e1,e2,e3) = p2_Stmt_mult (a,gamma) [e1,e2,e3]
+p2_Tcond :: P2_in -> ([[JSNode]],JSNode,JSNode) -> P2_out
+p2_Tcond (a,gamma) (e1,e2,e3) = let
+  (a1,g1) = p2_Exp_mult (a,gamma) e1
+  (a2,g2) = p2_Stmt_mult (a1,g1) [e2,e3]
+  in (a2,g2)
 
 p2_TvarD :: P2_in -> (String,[JSNode]) -> P2_out
 p2_TvarD (a,gamma) (var,e) = let 
-  tvar = JST0_TV a (var ++ "Decl")
+  tvar = JST0_TV a ("var " ++ var)
   gammap = var_set gamma var (tvar,Potential)
   in p2_Expression (a+1,gammap) e
 
@@ -689,7 +694,7 @@ type P1_in = (Int,Context)
 type P1_out = (Int,Context)
 
 p1_Statement :: P1_in -> JSNode -> P1_out
-p1_Statement (_a,_gamma) j | trace 10 ("p1_JSNode : " ++ (show j)) False = undefined
+p1_Statement (_a,_gamma) j | trace 10 ("p1_Statement : " ++ (renderNodeToString j)) False = undefined
 p1_Statement (a,gamma) (NT n _l _c) = p1_Statement (a,gamma) (NN n)
 p1_Statement (a,gamma) (NN n)
   -- boxes
@@ -784,8 +789,11 @@ p1_TmemX (a,gamma) (e1,_m,ei) = p1_Exp_mult (a,gamma) (e1:ei)
 p1_TfunX :: P1_in -> ([JSNode],[[JSNode]]) -> P1_out
 p1_TfunX (a,gamma) (ef,ei) = p1_Exp_mult (a,gamma) (ef:ei)
 
-p1_Tcond :: P1_in -> (JSNode,JSNode,JSNode) -> P1_out
-p1_Tcond (a,gamma) (e1,e2,e3) = p1_Stmt_mult (a,gamma) [e1,e2,e3]
+p1_Tcond :: P1_in -> ([[JSNode]],JSNode,JSNode) -> P1_out
+p1_Tcond (a,gamma) (e1,e2,e3) = let
+  (a1,g1) = p1_Exp_mult (a,gamma) e1
+  (a2,g2) = p1_Stmt_mult (a1,g1) [e2,e3]
+  in (a2,g2)
 
 p1_TvarD :: P1_in -> (String,[JSNode]) -> P1_out
 p1_TvarD (a,gamma) (_var,e) = p1_Expression (a,gamma) e
@@ -799,7 +807,7 @@ p1_funExpr (a,gamma) (f,_x,e) = (a,gamma)
 -- ignore function body, but function name is defined here
 p1_funStmt :: P1_in -> (String,[String],JSNode) -> P1_out
 p1_funStmt (a,gamma) (f,_x,e) = let
-  tf = JST0_TV a (f ++ "Decl")
+  tf = JST0_TV a ("function " ++ f)
   gammap = var_set gamma f (tf,Definite)
   in (a+1,gammap)
 

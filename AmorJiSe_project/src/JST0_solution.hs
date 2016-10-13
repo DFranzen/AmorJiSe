@@ -42,13 +42,18 @@ solution_add_upperbound :: Solution -> Int -> Type -> Solution
 solution_add_upperbound s i t = let
   old = map_get_sol i s
   in solution_set s i (min_type old t)
-                                    
-show_solution :: Solution -> String
-show_solution s = Map.foldWithKey (\i t prv -> prv ++ (show i)) "" s
-  --Map.foldWithKey (\i t prv -> prv ++ show_solution_one i t) "" s
 
-show_solution_one :: Int -> Type -> String
-show_solution_one i t = (show i) ++ " -- " ++ (show t) ++ "\n"
+show_varTypes :: Map Int String -> Solution ->  String
+show_varTypes m s = Map.foldWithKey (\i t prv -> prv ++ "    " ++ (show i) ++ ": T(" ++ (lookupOrEmptystring i m) ++ ")\n       " ++ show t ++ "\n") "" s
+
+lookupOrEmptystring :: Int -> Map Int String -> String
+lookupOrEmptystring i m = let value = Map.lookup i m
+                      in case value of
+                          Just s -> s
+                          Nothing -> ""
+                    
+show_solution :: Solution -> String
+show_solution s = Map.foldWithKey (\i t prv -> prv ++ "    " ++ show i ++ ": " ++ show t) "" s
 
 ----------------------------------------
 -- checks a solution against the set of constraints

@@ -29,7 +29,7 @@ close_constraints (x:xs) d r = let
 
 -- insert a new constrain into the CMAP and (if neccessary insert all constraints in the closure)
 insert_and_close :: CMap -> Constrain -> CMap
-insert_and_close cmap c | trace 25 ("Inserting " ++ show c ++ " into " ++ show cmap) False = undefined
+--insert_and_close cmap c | trace 25 ("Inserting " ++ show c ++ " into " ++ show cmap) False = undefined
 insert_and_close cmap c | trace 25 ("Inserting " ++ show c) True = let
   -- insert new constraint
   (cmap1,b2) = cmap_check_and_insert cmap c
@@ -43,11 +43,13 @@ insert_and_close cmap c | trace 25 ("Inserting " ++ show c) True = let
       -- close on its own
       cmap2 | is_closeCongFunc c = cc_closeCongFunc cmap1 c
             | otherwise = cmap1
+      cmap3 | is_equi c = cc_closeEqui cmap2 c
+            | otherwise = cmap2
       -- get all the relevant TVs
       ind = Set.insert (-1) (JST0_constrain.get_TVs_index c)
       -- get all the relevant constraints
-      cs = Set.map (\i -> (cmap_geti cmap2 i)) ind
-      in close_WithSetCSet cmap2 c cs
+      cs = Set.map (\i -> (cmap_geti cmap3 i)) ind
+      in close_WithSetCSet cmap3 c cs
 
 insert_and_close_list :: CMap -> [Constrain] -> CMap
 insert_and_close_list cmap xs | trace 30 "insert_and_close_list" False = undefined
@@ -93,6 +95,10 @@ close_WithCSet cm c cs = Map.fold (\cp prv -> close_WithConstraint prv c cp) cm 
 close_WithSetCSet :: CMap -> Constrain -> Set CSet -> CMap
 close_WithSetCSet _cm c css | trace 30 ("Close WithSetCSet " ++ show c ++ " with " ++ show css) False = undefined
 close_WithSetCSet cm c css = Set.fold (\cp prv -> close_WithCSet prv c cp) cm css
+
+is_equi :: Constrain -> Bool
+is_equi (SubType t1 t2) = is_Simple t1 || is_Simple t2 || is_Function t1 || is_Function t2
+is_equi _ = False
 
 is_closeEmpty :: Constrain -> Constrain -> Bool
 is_closeEmpty (SubType t1 _t1p) (Empty t) = (t /= JST0_None) && (t1 == t)
@@ -237,6 +243,10 @@ cc_closeCongFunc cm (SubType (JST0_Function o1 t1 t1p) (JST0_Function o2 t2 t2p)
       cm6 = insert_and_close cm5 (SubType o1 o2)
   in cm6
 cc_closeCongFunc _cm _c1 = undefined
+
+cc_closeEqui :: CMap -> Constrain -> CMap
+cc_closeEqui cm (SubType t1 t2) = insert_and_close cm (SubType t2 t1)
+cc_closeEqui _cm _c = undefined
 
 close_list :: [Type] -> [Type] -> [Constrain]
 close_list [] _ = []
@@ -383,7 +393,7 @@ extract_type s (m,cmap) i = if (Set.member i s)
                                  in case t of
                                    HL_simple tp -> tp
                                    HL_at_most tp -> tp
-                                   HL_taged -> JST0_None
+                                   HL_return -> extract_type_return s (m,cmap) i cs
                                    HL_None -> JST0_None
                                    HL_Function -> extract_type_function s (m,cmap) i cs
                                    HL_Object -> let
@@ -407,6 +417,7 @@ extract_type_type _ _ (JST0_String st) = (JST0_String st)
 extract_type_type s m (JST0_TV a _ann) = extract_type s m a
 extract_type_type _ _ (JST0_Alpha a) = (JST0_Alpha a)
 extract_type_type _ _ (JST0_None) = JST0_None
+extract_type_type s m (JST0_Ret t) = JST0_Ret (extract_type_type s m t)
 extract_type_type s m (JST0_Function t1 t2 t3) = (JST0_Function
                                                   (extract_type_type s m t1)
                                                   (extract_type_type_list s m t2)
@@ -435,6 +446,9 @@ extract_type_members s m mem = Map.map (extract_type_member s m) mem
 extract_type_function :: (Set Int) -> (HL_Map,CMap) -> Int -> CSet -> Type
 extract_type_function s mp i cs = Map.foldr (\this rest -> extract_type_from_constraint s mp i this rest) (JST0_Function JST0_None [] JST0_None) cs
 
+extract_type_return :: (Set Int) -> (HL_Map,CMap) -> Int -> CSet -> Type
+extract_type_return s mp i cs = Map.foldr (\c prv -> extract_type_from_constraint s mp i c prv) (JST0_Ret JST0_None) cs
+
 --TODO: Do we need to think about typing rules t'<t to derive types for t?
 -- extract the type of an object from the constraints
 -- Arguments:
@@ -444,15 +458,17 @@ extract_type_function s mp i cs = Map.foldr (\this rest -> extract_type_from_con
 --  - All constraints concerning that TV
 -- Returns: Type of this TV (TV less)
 extract_type_object :: (Set Int) -> (HL_Map,CMap) -> Int -> CSet -> Type
+extract_type_object s mp i cs | trace 35 ("Extracting object: mu " ++ show (Beta i)) False = undefined
 extract_type_object s mp i cs = Map.foldr (\this rest -> extract_type_from_constraint s mp i this rest) (object_empty (Beta i)) cs
 
 -- Returns upper bound for the type TV with the given index
 extract_type_from_constraint :: (Set Int) -> (HL_Map,CMap) -> Int -> Constrain -> Type -> Type
-extract_type_from_constraint s mp i c t |trace 30 ("extract_type_from_constraint: " ++ show c ) False = undefined
-extract_type_from_constraint s mp i (SubType (JST0_TV a _ann) t) tc | (a == i) =
+extract_type_from_constraint s mp i c t |trace 35 ("extract_type_from_constraint: " ++ show i ++ ":" ++ show c ++ " working solution: " ++ show t) False = undefined
+extract_type_from_constraint s mp i (SubType (JST0_TV a _ann) t) tc |  (a == i) =
   case t of
     (JST0_TV _a _ann) -> tc -- indirect subtypings have been handled by closure
     (JST0_Alpha _) -> tc
+    (JST0_Object NotRec mem) -> min_type (JST0_Object (Beta i) (extract_type_members s mp mem)) tc
     _ -> min_type (extract_type_type s mp t) tc
 extract_type_from_constraint s mp i (Extend (JST0_TV a _ann) t) tc | (a == i) =
   case t of

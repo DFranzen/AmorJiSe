@@ -105,11 +105,13 @@ compare_P s1 op s2 JST0P_Int JST0P_Int cs = cs
 compare_P s1 op s2 JST0P_Bool JST0P_Bool cs = cs
 compare_P s1 op s2 (JST0P_String _s) (JST0P_String _s2) cs = cs
 compare_P s1 op s2 (JST0P_Ret t1) (JST0P_Ret t2) cs = compare_An s1 op s2 t1 t2 cs
-compare_P s1 op s2 (JST0P_None) (JST0P_None) cs = cs
+compare_P s1 op s2 (JST0P_None) _ cs = cs
+compare_P s1 op s2 _ (JST0P_None) cs = cs
 -- compare_P l1 l2 l3 (JST0P_Alpha) should never happen, since objects are unfolded all the time.
 
 compare_list :: Comp_Selector -> Comp_Operator -> Comp_Selector -> [TypeAn] -> [TypeAn] -> Set ConstrainAn -> Set ConstrainAn
-compare_list s1 op s2 [] [] cs = cs --If the 
+compare_list s1 op s2 l1 l2 cs |trace 35 ("comparing " ++ show l1 ++ "<->" ++ show l2) False = undefined
+compare_list s1 op s2 [] [] cs = cs
 compare_list s1 op s2 (x:xs) (y:ys) cs = let cs1 = compare_An s1 op s2 x y cs
                                          in compare_list s1 op s2 xs ys cs1
 
@@ -146,40 +148,44 @@ makeEqualAn_nu_nu :: TypeAn -> TypeAn -> Set ConstrainAn
 makeEqualAn_nu_nu = compareT comp_nu comp_eq comp_nu
 
 makeEqual_nu_nu :: TypeAn -> TypeAn -> [ConstrainAn]
-makeEqual_nu_nu t1 t2 | trace 30 ("Computing constraints for nu nu " ++ show t1 ++ " " ++ show t2) False = undefined
+makeEqual_nu_nu t1 t2 | trace 30 ("Computing constraints for n=n " ++ show t1 ++ " " ++ show t2) False = undefined
 makeEqual_nu_nu t1 t2 = Set.toList (makeEqualAn_nu_nu t1 t2)
 
 makeEqualAn_n_n :: TypeAn -> TypeAn -> Set ConstrainAn
 makeEqualAn_n_n = compareT comp_n comp_eq comp_n
 
 makeEqual_n_n :: TypeAn -> TypeAn -> [ConstrainAn]
-makeEqual_n_n t1 t2 | trace 30 ("Computing constraints for n n " ++ show t1 ++ " " ++ show t2) False = undefined
+makeEqual_n_n t1 t2 | trace 30 ("Computing constraints for N=N " ++ show t1 ++ " " ++ show t2) False = undefined
 makeEqual_n_n t1 t2 = Set.toList (makeEqualAn_n_n t1 t2)
 
 makeGreater_nu_nu :: TypeAn -> TypeAn -> Set ConstrainAn
-makeGreater_nu_nu = compareT comp_nu comp_gt comp_nu
+makeGreater_nu_nu t1 t2 | trace 30 ("Computing constraints for n>n " ++ show t1 ++ " " ++ show t2) False = undefined
+makeGreater_nu_nu t1 t2 = compareT comp_nu comp_gt comp_nu t1 t2
 
 makeGreater_n_n :: TypeAn -> TypeAn -> Set ConstrainAn
-makeGreater_n_n = compareT comp_n comp_gt comp_n
+makeGreater_n_n t1 t2 | trace 30 ("Computing constraints for N>N " ++ show t1 ++ " " ++ show t2) False = undefined
+makeGreater_n_n t1 t2 = compareT comp_n comp_gt comp_n t1 t2
 
 makeLess_nu_nu :: TypeAn -> TypeAn -> Set ConstrainAn
+makeLess_nu_nu t1 t2 | trace 30 ("Computing constraints for n<n " ++ show t1 ++ " " ++ show t2) False = undefined
 makeLess_nu_nu t1 t2 = makeGreater_nu_nu t2 t1
 
 makeLess_n_n :: TypeAn -> TypeAn -> Set ConstrainAn
+makeLess_n_n t1 t2 | trace 30 ("Computing constraints for " ++ show t1 ++ "(N<N)" ++ show t2) False = undefined
 makeLess_n_n t1 t2 = makeGreater_n_n t2 t1
 
 makeEqualAn_all :: TypeAn -> TypeAn -> Set ConstrainAn
 makeEqualAn_all = compareT comp_all comp_eq comp_all
 
 makeEqual_all :: TypeAn -> TypeAn -> [ConstrainAn]
-makeEqual_all t1 t2 | trace 30 ("Computing constraints for nu and n " ++ show t1 ++ " " ++ show t2) False = undefined
+makeEqual_all t1 t2 | trace 30 ("Computing constraints for " ++ show t1 ++ "=" ++ show t2) False = undefined
 makeEqual_all t1 t2 = Set.toList (makeEqualAn_all t1 t2)
 
 makeEqualAn_nu_n :: TypeAn -> TypeAn -> Set ConstrainAn
 makeEqualAn_nu_n = compareT comp_nu comp_eq comp_n
 
 makeEqual_nu_n :: TypeAn -> TypeAn -> [ConstrainAn]
-makeEqual_nu_n t1 t2 | trace 30 ("Computing constraints for nu to n " ++ show t1 ++ " " ++ show t2) False = undefined
+makeEqual_nu_n t1 t2 | trace 30 ("Computing constraints for " ++ show t1 ++ "(n=N)" ++ show t2) False = undefined
 makeEqual_nu_n t1 t2 = Set.toList (makeEqualAn_nu_n  t1 t2)
 
 
@@ -194,7 +200,7 @@ makeExtendAn m ((JST0P_Object a1 mem1),nu1,n1) ((JST0P_Object a2 mem2),nu2,n2) =
   in Set.union cs (Set.fromList [Eq [nu1] [nu2],Eq [n1] [n2]])
 
 makeExtend :: String -> TypeAn -> TypeAn -> [ConstrainAn]
-makeExtend s t1 t2 | trace 30 ("Computing Extend constraints: " ++ show t1 ++ " " ++ s ++ " " ++ show t2) False = undefined
+makeExtend s t1 t2 | trace 30 ("Computing Extend constraints: " ++ show t1 ++ " <_" ++ s ++ " " ++ show t2) False = undefined
 makeExtend s t1 t2 = Set.toList (makeExtendAn s t1 t2)
 
 
@@ -224,7 +230,7 @@ makeSubtypeAn :: TypeAn -> TypeAn -> Set ConstrainAn
 makeSubtypeAn t1 t2 = Set.union (makeLess_n_n t1 t2) (makeGreater_nu_nu t1 t2)
 
 makeSubtype :: TypeAn -> TypeAn -> [ConstrainAn]
-makeSubtype t1 t2 | trace 30 ("Computing Subtype constraints: " ++ show t1 ++ "," ++ show t2) False = undefined
+makeSubtype t1 t2 | trace 30 ("Computing Subtype constraints: " ++ show t1 ++ "<=" ++ show t2) False = undefined
 makeSubtype t1 t2 = Set.toList (makeSubtypeAn t1 t2)
 
 makeSubtype_list :: [TypeAn] -> [TypeAn] -> [ConstrainAn]
@@ -241,7 +247,7 @@ makeSplit_Member :: (TypeAn,FieldType) -> (TypeAn,FieldType) -> (TypeAn,FieldTyp
 makeSplit_Member (t1,f1) (t2,f2) (t3,f3) cs = makeSplit_An t1 t2 t3 cs
 
 makeSplit_P :: TypeP -> TypeP -> TypeP -> Set ConstrainAn -> Set ConstrainAn
-makeSplit_P t1 t2 t3 cs | trace 30 ("makeSplitP " ++ show t1 ++ "->" ++ show t2 ++ "(+)" ++ show t3) False = undefined
+makeSplit_P t1 t2 t3 cs | trace 30 ("makeSplitP " ++ show t1 ++ " c-> " ++ show t2 ++ "(+)" ++ show t3) False = undefined
 makeSplit_P (JST0P_Object a1 mem1) (JST0P_Object a2 mem2) (JST0P_Object a3 mem3) cs = let
   -- unfold the Object types
   uf1 = membersAn_subs_alpha mem1 a1 (JST0P_Object a1 mem1)
@@ -255,7 +261,8 @@ makeSplit_P (JST0P_Ret t1) (JST0P_Ret t2) (JST0P_Ret t3) cs = makeSplit_An t1 t2
 makeSplit_P (JST0P_Function o1 xs1 n1 r1 np1) (JST0P_Function o2 xs2 n2 r2 np2) (JST0P_Function o3 xs3 n3 r3 np3) cs = 
   let
     cs2 = compare_P comp_all comp_eq comp_all (JST0P_Function o1 xs1 n1 r1 np1) (JST0P_Function o3 xs3 n3 r3 np3) cs
-  in compare_P comp_all comp_eq comp_all (JST0P_Function o1 xs1 n1 r1 np1) (JST0P_Function o2 xs2 n2 r2 np2) cs2            
+  in compare_P comp_all comp_eq comp_all (JST0P_Function o1 xs1 n1 r1 np1) (JST0P_Function o2 xs2 n2 r2 np2) cs2
+makeSplit_P JST0P_None JST0P_None JST0P_None cs = cs
 
 makeSplit_An :: TypeAn -> TypeAn -> TypeAn -> Set ConstrainAn-> Set ConstrainAn
 makeSplit_An (t1,nu1,n1) (t2,nu2,n2) (t3,nu3,n3) cs = let (cs2,b2) = union_and_test (Set.fromList [Gt [nu1] [nu2,nu3], Eq [n1] [n2],Eq [n1] [n3]]) cs
@@ -271,7 +278,7 @@ makeSplit_Members mem1 mem2 mem3 cs | ((Map.keysSet mem1) == (Map.keysSet mem2))
   mem3
 
 makeSplit :: TypeAn -> TypeAn -> TypeAn -> [ConstrainAn]
-makeSplit t1 t2 t3 | trace 30 ("makeSplit " ++ (show t1) ++ " " ++ (show t2) ++ " " ++ (show t3)) False = undefined
+makeSplit t1 t2 t3 | trace 30 ("makeSplit " ++ (show t1) ++ " c-> " ++ (show t2) ++ "(+)" ++ (show t3)) False = undefined
 makeSplit t1 t2 t3 = let
         (dt1,i1,ma1) = distingtify_An (t1,0,Map.empty)
         (dt2,i2,ma2) = distingtify_An (t2,i1,ma1)
@@ -301,13 +308,38 @@ seq_typeP (a,sol) (JST0P_Ret t1) (JST0P_Ret t2) = let
   c1 = Set.toList (makeSubtypeAn t t1)
   c2 = Set.toList (makeSubtypeAn t t2)
   in (a+1,JST0P_Ret t,concat [c1,c2])
-seq_typeP (a,sol) (JST0P_Ret t1) _t2 | error "Return on some paths only" = (a,JST0P_Ret t1,[])
+seq_typeP (a,sol) (JST0P_Ret t1) _t2 | error "Dead code" = (a,JST0P_Ret t1,[])
 seq_typeP (a,sol) _t1 t2 = (a,t2,[])
 
 seq_typeAn :: (Int,SolutionAn) -> TypeAn -> TypeAn -> (Int,TypeAn,[ConstrainAn])
 seq_typeAn (a,sol) (t1,_,_) (t2,_,_) = let 
     (a,t,c) = seq_typeP (a,sol) t1 t2
   in (a,(t,I 0,I 0),c)
+
+
+merge_typeP :: (Int,SolutionAn) -> TypeP -> TypeP -> (Int, TypeP,[ConstrainAn])
+merge_typeP (a,sol) t1 t2 | trace 35 ("Merging (" ++ show 3 ++ ")" ++ show t1 ++ " <-> " ++ show t2) False = undefined
+merge_typeP (a,sol) (JST0P_Ret t1) (JST0P_Ret t2) = let
+  t = solutionAn_get sol a
+  c1 = Set.toList (makeSubtypeAn t1 t)
+  c2 = Set.toList (makeSubtypeAn t2 t)
+  in (a+1,JST0P_Ret t,concat [c1,c2])
+--merge_typeP (a,sol) (JST0P_Ret t1) JST0P_None = let
+--  t = solutionAn_get sol a
+--  c1 = Set.toList (makeSubtypeAn t1 t)
+--  in (a+1,JST0P_Ret t,c1)
+--merge_typeP (a,sol) JST0P_None (JST0P_Ret t1) = let
+--  t = solutionAn_get sol a
+--  c1 = Set.toList (makeSubtypeAn t1 t)
+--  in (a+1,JST0P_Ret t,c1)
+merge_typeP (a,sol) _ _ = (a,JST0P_None,[])
+
+merge_typeAn :: (Int,SolutionAn) -> TypeAn -> TypeAn -> (Int,TypeAn,[ConstrainAn])
+merge_typeAn (a,sol) t1 t2 | trace 35 ("Merging (" ++ show a ++ ")" ++ show t1 ++ " <-> " ++ show t2) False = undefined
+merge_typeAn (a,sol) (t1,_,_) (t2,_,_) = let 
+    (a1,t,c) = merge_typeP (a,sol) t1 t2
+  in (a1,(t,I 0,I 0),c)
+
 ----------------------------------------
 -- Compute set of Constraints to make the three types match the minimum Relation
 --  o3 = min(o1,o2)
@@ -335,6 +367,24 @@ makeEmpty_Members mem = Map.fold (\(t,_ft) r -> Set.union r (makeEmpty_An t)) Se
 makeEmpty :: TypeAn -> [ConstrainAn]
 makeEmpty t | trace 30 ("Computing empty constraints " ++ show t) False = undefined
 makeEmpty t = Set.toList (makeEmpty_An t)
+
+----------------------------------------
+-- Compute a set of constriants that guarantees, that the given type is sufficient for itself.
+----------------------------------------
+makeSuff_P :: TypeP -> Set ConstrainAn
+makeSuff_P (JST0P_Object _alpha mem) = makeSuff_Members mem
+makeSuff_P _ = Set.empty
+
+makeSuff_An :: TypeAn -> Set ConstrainAn
+makeSuff_An (t,nu,n) = Set.insert (Gt [n] [nu]) (makeSuff_P t)
+
+makeSuff_Members :: MembersAn -> Set ConstrainAn
+makeSuff_Members mem = Map.fold (\(t,_ft) r -> Set.union r (makeSuff_An t)) Set.empty mem 
+
+makeSuff :: TypeAn -> [ConstrainAn]
+makeSuff t | trace 30 ("Computing suff constraints " ++ show t) False = undefined
+makeSuff t = Set.toList (makeSuff_An t)
+
 
 ----------------------------------------
 -- auxiliary functions

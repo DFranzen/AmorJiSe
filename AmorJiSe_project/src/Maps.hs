@@ -104,6 +104,9 @@ cset_contains m c = case Map.lookup (show c) m of
   (Just _) -> True
   Nothing -> False
 
+cset_count :: CSet -> Int
+cset_count cm = length (Map.keys cm)
+
 -- union with check, how many of the elements from the 1st argument were inserted into the 2nd argument
 cset_union_int :: CSet -> CSet -> (CSet, Int)
 cset_union_int cm cmp = let

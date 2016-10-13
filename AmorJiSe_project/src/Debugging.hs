@@ -10,11 +10,11 @@ import Debug.Trace
 -- 25: Constraints Analysis steps, minor Analysis steps
 -- 30: Aux_Functions
 traceLevel :: Int
-traceLevel = 2
+traceLevel = 10
 
 trace :: Int -> String -> Bool -> Bool
 trace l a b |(l == 1) && Debug.Trace.trace ("****ERROR****" ++ a) True = undefined
-trace l a b |(l == 10) && (traceLevel>=10) = Debug.Trace.trace ("\n-->>" ++ a) b
+trace l a b |(l == 10) && (traceLevel>=10) = Debug.Trace.trace ("-->> " ++ a) b
 trace l a b |(l == 25) && (traceLevel>=25) = Debug.Trace.trace ("CI " ++ a) b
 trace l a b |(l>1) && (traceLevel>=l) = Debug.Trace.trace a b
 trace _ _ b = b

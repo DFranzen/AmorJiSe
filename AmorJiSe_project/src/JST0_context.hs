@@ -2,6 +2,7 @@ module JST0_context
        (
          Context ,
          JST0_context.empty ,
+         context_toNiceString,
          var_get ,
          var_get_definite,
          var_set ,
@@ -21,6 +22,7 @@ import Data.Set as Set
 import JST0_types
 import JST0_type_aux
 import JST0_constrain
+import JST0_solution
 
 import Debugging
 
@@ -29,6 +31,14 @@ type Context = Members
 
 empty :: Context
 empty = Map.empty
+
+
+context_toNiceString :: Context -> Solution -> String
+context_toNiceString m sol = (Map.foldWithKey (\s t prv -> prv ++ (context_toNiceString_one s t sol)) "" m)
+
+context_toNiceString_one :: String -> (Type,FieldType) -> Solution -> String
+context_toNiceString_one s (t,tf) sol = "    " ++ show s ++ ": " ++ show (type_eliminate_TVs sol t) ++ show tf ++ "\n"
+
 
 -- return saved type of variable s in the context gamma
 -- if it does not exist, TV with id a is returned
@@ -57,7 +67,7 @@ var_set_list e (s:ss) (t:ts) = var_set (var_set_list e ss ts) s t
 -- generate a context that is smaller than g1 and g2
 context_min :: Context -> Context -> Context
 context_min g1 g2 = let
-  (JST0_Object alpha g) = min_type (JST0_Object NotRec g1) (JST0_Object NotRec g2)
+  (JST0_Object NotRec g) = min_type (JST0_Object NotRec g1) (JST0_Object NotRec g2)
   in g
   --mergeWithKey var_min id id g1 g2
 
@@ -78,7 +88,7 @@ context_min g1 g2 = let
 -- That means an object will only have those fields that are accessed after the merge
 -- As the missing fields are not accessed anymore there is no further access to them that would consume a virtual resource unit
 context_min_constrain :: Context -> Context -> Int -> ([Constrain],Context,Int)
-context_min_constrain _g1 _g2 a | trace 30 ("context_min_constrain: " ++ show a) False = undefined
+context_min_constrain _g1 _g2 a | trace 35 ("context_min_constrain: " ++ show a) False = undefined
 context_min_constrain g1 g2 a = vars_min_constrain g1 g2 a (get_union_set g1 g2)
 
 vars_min_constrain :: Context -> Context -> Int -> [String] -> ([Constrain],Context,Int)
@@ -86,7 +96,7 @@ vars_min_constrain _g1 _g2 a [] = ([],JST0_context.empty,a)
 vars_min_constrain g1 g2 a (s:ss) = let
   (c_ss,g,a_ss) = vars_min_constrain g1 g2 a ss
   (c_s,t,a_s) = var_min_constrain g1 g2 a_ss s
-  res | trace 30 ("Result of Vars_min_constrain: " ++ s ++ "=" ++ show t) True = (concat [c_ss,c_s],Map.insert s t g,a_s)
+  res | trace 35 ("Result of Vars_min_constrain: " ++ s ++ "=" ++ show t) True = (concat [c_ss,c_s],Map.insert s t g,a_s)
   in res
 
 var_min_constrain :: Context -> Context -> Int -> String -> ([Constrain],(Type,FieldType),Int)
@@ -101,6 +111,7 @@ var_min_constrain g1 g2 a s = let
         | (t2 == JST0_None) = (t1,[])
         | otherwise = ((JST0_TV a (s ++ "_merge")), [SubType t1 t,SubType t2 t])
   in (c,(t,min_field_type tf1 tf2),a+1)
+
 
 get_union_set :: Context -> Context -> [String]
 get_union_set g1 g2 = Set.elems (Set.union (Map.keysSet g1) (Map.keysSet g2))

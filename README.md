@@ -16,6 +16,8 @@ The system knows the following main commands
   - ti_file: reads and analyses a JavaScript file, provided its path using the AmorJiSe system
   - ti_test: run the test cases
 
+The output detail is routed through the central trace method. By changing the variable trace_level in Debugging.hs the amount of output can be specified for all those commands.
+
 Specifying the resource model:
 -----------------------------
 The resource model for the language activated resources is specified in Res_model.hs. For modification emacs is included in this image. Each language construct analysed by the system has one constant e.g. c_varW for writing to a variable. Once the model has been modified it can be reloaded into the haskell instance with

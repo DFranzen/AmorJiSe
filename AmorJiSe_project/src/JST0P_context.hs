@@ -15,7 +15,8 @@ module JST0P_context
          context_min_constrain,
         -- context_sub_constrain,
          aug_context,
-         deg_context
+         deg_context,
+         contextAn_toNiceString
        ) where
 
 ---------------------------------
@@ -122,11 +123,11 @@ sol_set :: ContextAn -> SolutionAn -> ContextAn
 sol_set (c,_sol) sol = (c,sol)
 
 context_min_constrain :: ContextAn -> ContextAn -> (Int,Int) -> ([ConstrainAn],ContextAn,Int,Int)
-context_min_constrain _g1 _g2 (a,_b) | trace 30 ("context_min_constrain+: " ++ show a) False = undefined
+context_min_constrain g1 g2 (a,b) | trace 30 ("context_min_constrain: " ++ show (a,b) ++ "," ++ show (var_names g1) ++ "," ++ show (var_names g2)) False = undefined
 context_min_constrain g1 g2 (a,b) = vars_min_constrain g1 g2 (a,b) (get_union_set g1 g2)
 
 vars_min_constrain :: ContextAn -> ContextAn -> (Int,Int) -> [String] -> ([ConstrainAn],ContextAn,Int,Int)
-vars_min_constrain _g1 _g2 (a,_b) ss | trace 30 ("vars_min_constrain: " ++ show a ++ ", " ++ show ss) False = undefined
+vars_min_constrain _g1 _g2 (a,_b) ss | trace 35 ("vars_min_constrain: " ++ show a ++ ", " ++ show ss) False = undefined
 vars_min_constrain g1 _g2 (a,b) [] = ([],empty_c g1,a,b)
 vars_min_constrain g1 g2 (a,b) (s:ss) = let
   (c_ss,g,a_ss,b_ss) = vars_min_constrain g1 g2 (a,b) ss
@@ -147,7 +148,7 @@ vars_min_constrain g1 g2 (a,b) (s:ss) = let
 --   - new indices for type variable and annotation variable
 ----------------------------------------
 var_min_constrain :: ContextAn -> ContextAn -> (Int,Int) -> String -> ([ConstrainAn],(TypeAn,FieldType),Int,Int)
-var_min_constrain _g1 _g2 (a,_b) s | trace 30 ("vars_min_constrain: " ++ show a ++ ", " ++ show s) False = undefined
+var_min_constrain g1 g2 (a,_b) s | trace 30 ("var_min_constrain: " ++ ", " ++ show s ++ ":" ++ show (var_lookup g1 s,var_lookup g2 s)) False = undefined
 var_min_constrain g1 g2 (a,b) s = let
   (t1,psi1) = case var_lookup g1 s of
     Just tp -> tp
@@ -193,3 +194,10 @@ deg_context (con,_sol) = Map.map (\(t,tf) -> (deflateAn t,tf)) con
 
 get_vars :: ContextAn -> [Int]
 get_vars (mem,_sol) = membersAn_get_vars mem
+
+
+contextAn_toNiceString :: ContextAn -> String
+contextAn_toNiceString (m,sol) = (Map.foldWithKey (\s ty prv -> prv ++ (contextAn_toNiceString_one s ty)) "" m)
+
+contextAn_toNiceString_one :: String -> (TypeAn,FieldType) -> String
+contextAn_toNiceString_one s (t,tf) = "    " ++ (show s) ++ ":" ++ (show t) ++ (show tf) ++ "\n"

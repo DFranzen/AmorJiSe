@@ -34,6 +34,7 @@ module Extraction (
   ex_JSId,
 
   showCode,
+  show_list,
 
   ex_Statements,
   ex_Expressions,
@@ -46,13 +47,26 @@ module Extraction (
 
   ex_Expression_single,
   ex_ExpressionParen_single,
+
+  renderExpressionToString,
+  renderListToString,
+  renderLinesToString,
+  renderExpressionListToString,
+  renderExpSeqToString,
+  renderStmtSeqToString,
+  renderNodeToString,
+  renderObjLitToString,
   ) where
 
 import Language.JavaScript.Parser.AST
+import Language.JavaScript.Pretty.Printer
 
 import Conditionals
 
 import Debugging
+
+import Data.List as List
+import Data.Char (isSpace)
 
 ----------------------------------------
 -- Extractions for the rules
@@ -109,7 +123,7 @@ ex_TnewX js = ex_new_call_JS js
 
 -- Statements
 
-ex_Tcond :: JSNode -> (JSNode,JSNode,JSNode)
+ex_Tcond :: JSNode -> ([[JSNode]],JSNode,JSNode)
 ex_Tcond _ | trace 30 "ex_Tcond" False = undefined
 ex_Tcond j = ex_if_comps_JS j
 
@@ -301,14 +315,16 @@ ex_argument_JS = extract_JSNode ex_argument
 --   - True branch is either [stmt] or [stmt ;]
 --   - Else branch is either [] or [else stmt] or [else stmt ;]
 -- Boolean expression is wrapped in a JSExpression -> diguised as a Stmt
-ex_if_comps :: Node -> (JSNode,JSNode,JSNode)
+ex_if_comps :: Node -> ([[JSNode]],JSNode,JSNode)
 ex_if_comps (JSIf _if _lb bool _rb true_list []) = let
-            true = ex_single_stmt true_list
-            in (bool,true,NN (JSLiteral ""))
+  bool_exp = ex_Expressions bool
+  true = ex_single_stmt true_list
+  in (bool_exp,true,NN (JSLiteral ""))
 ex_if_comps (JSIf _if _lb bool _rb true_list (_elsee:false_list)) = let
-            true = ex_single_stmt true_list
-            false = ex_single_stmt false_list
-            in (bool,true,false)
+  bool_exp = ex_Expressions bool
+  true =  ex_single_stmt true_list
+  false = ex_single_stmt false_list
+  in (bool_exp,true,false)
 ex_if_comps js | error ("if components not recognized " ++ show js) = undefined
                | otherwise = undefined
 
@@ -318,7 +334,7 @@ ex_single_stmt [j,j2] | is_semicolon_JS j2 = j
 ex_single_stmt js | error ("Single Statement not recognized" ++ show js) = undefined
                   | otherwise = undefined
 
-ex_if_comps_JS :: JSNode -> (JSNode, JSNode, JSNode)
+ex_if_comps_JS :: JSNode -> ([[JSNode]], JSNode, JSNode)
 ex_if_comps_JS = extract_JSNode ex_if_comps
 
 ex_decl_comps :: Node -> (String,[JSNode])
@@ -621,6 +637,11 @@ ss :: JSNode -> String
 ss (NN node    ) = showCode node
 ss (NT node _ _) = showCode node
 
+show_list :: [String] -> String
+show_list [] = ""
+show_list [x] = x
+show_list (x:xs) = show x ++ "," ++ show_list xs
+
 sss :: [JSNode] -> String
 sss xs = (concatMap ss xs)
 
@@ -713,3 +734,35 @@ ex_ExpressionParen :: Node -> [[JSNode]]
 ex_ExpressionParen (JSExpressionParen _lb (NN (JSExpression js)) _rb) = split_expsequence js
 ex_ExpressionParen _ | error "ExpressionParen not recognized" = undefined
                      | otherwise = undefined
+
+renderListToString :: [JSNode] -> String
+renderListToString = List.foldl (\pre j -> pre ++ trim(renderToString j) ++ ",") ""
+
+renderExpressionListToString :: [[JSNode]] -> String
+renderExpressionListToString [] = ""
+renderExpressionListToString [js] = renderExpressionToString js
+renderExpressionListToString (js:jss) = renderExpressionToString js ++ "," ++ renderExpressionListToString jss
+--renderExpressionListToString = List.foldl (\pre js -> pre ++ renderExpressionToString js ++ ",") ""
+
+renderExpSeqToString :: [[JSNode]] -> String
+renderExpSeqToString = List.foldl (\pre js -> pre ++ renderExpressionToString js ++ ";") ""
+
+renderStmtSeqToString :: [JSNode] -> String
+renderStmtSeqToString = List.foldl (\pre js -> pre ++ renderNodeToString js ++ ";") ""
+
+
+renderLinesToString :: [JSNode] -> String
+renderLinesToString = List.foldl (\pre j -> pre ++ trim(renderToString j) ++ "\n") ""
+
+renderExpressionToString :: [JSNode] -> String
+renderExpressionToString = List.foldl (\pre j -> pre ++ trim(renderToString j) ++ " ") ""
+
+renderNodeToString :: JSNode -> String
+renderNodeToString j = trim(renderToString j)
+
+renderObjLitToString :: [(String,[JSNode])] -> String
+renderObjLitToString j = "{" ++ (List.foldl (\pre (s,js) -> pre ++ s ++ ":" ++ (renderExpressionToString js) ++ ",") "" j) ++ "}"
+
+trim :: String -> String
+trim = f . f
+   where f = reverse . dropWhile isSpace

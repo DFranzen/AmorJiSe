@@ -11,6 +11,7 @@ module JST0P_types
 
          isTerminalType,
          isFunctionType,
+         isRecursive_An,
 
 --         swap_alphaP_members,
          equalize_alpha,
@@ -221,6 +222,16 @@ isTerminalType _ = False
 isFunctionType :: TypeP -> Bool
 isFunctionType (JST0P_Function o t n tp np) = True
 isFunctionType _ = False
+
+isRecursive_P :: TypeP -> Bool
+isRecursive_P t | isTerminalType t = False
+isRecursive_P t | isFunctionType t = False
+isRecursive_P (JST0P_Alpha a) = True
+isRecursive_P (JST0P_Ret t) = isRecursive_An t
+isRecursive_P (JST0P_Object a mem) = Map.foldr (\(t,psi) prv -> prv || isRecursive_An t) False mem
+
+isRecursive_An :: TypeAn -> Bool
+isRecursive_An (t,_nu,_n) = isRecursive_P t
 
 -----------------------------
 -- Inflation methods

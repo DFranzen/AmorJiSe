@@ -88,7 +88,10 @@ should_be_empty (_:cs) = should_be_empty cs
 
 cs_show_varinfo :: [Constrain] -> String
 cs_show_varinfo cs = let tvs = JST0_constrain.get_TVs_list cs
-                     in Map.foldWithKey (\i s prv -> (prv ++ "\n" ++ show i ++ ":" ++ s)) "" tvs
+                     in Map.foldWithKey (\i s prv -> (prv ++ "    " ++ show i ++ ":" ++ s ++ "\n")) "" tvs
+
+vars_toStringList :: Map Int String -> [String]
+vars_toStringList tvs = Map.foldWithKey (\i s prv -> (prv ++ ["    " ++ show i ++ ":" ++ s])) [] tvs
 
 -- return a list of all types in a constraint
 get_types :: Constrain -> [Type]
@@ -132,12 +135,28 @@ get_first_TV_index c = let
 --   - Index of next TV to be chosen
 --   - List of constrain generated
 seq_type :: Int -> Type -> Type -> (Int,Type,[Constrain])
-seq_type a t1 t2 | trace 10 "seq_type" False = undefined
+seq_type a t1 t2 | trace 35 "seq_type" False = undefined
 seq_type a (JST0_Ret t1) (JST0_Ret t2) = let
   t = JST0_TV a "Sequence"
   in (a+1,JST0_Ret t,[SubType t1 t,SubType t2 t])
-seq_type a (JST0_Ret t) _t2 | error "Return on some paths only" = (a,JST0_Ret t,[])
+seq_type a (JST0_Ret t) _t2 | error "Dead code" = (a,JST0_Ret t,[])
 seq_type a _t1 t2 = (a,t2,[])
+
+merge_type :: Int -> Type -> Type -> (Int,Type,[Constrain])
+merge_type a t1 t2 | trace 35 "merge_type" False = undefined
+merge_type a (JST0_Ret t1) (JST0_Ret t2) = let
+  t = JST0_TV a "If-Merge"
+  in (a+1,JST0_Ret t,[SubType t1 t,SubType t2 t])
+merge_type a _ _ = (a,JST0_None,[])
+--merge_type a (JST0_Ret t1) JST0_None = (a,JST0_None,[])
+--  let
+--  t = JST0_TV a "If-Merge"
+--  in (a+1,JST0_Ret t,[SubType t1 t])
+--merge_type a JST0_None (JST0_Ret t1) = let
+--  t = JST0_TV a "If-Merge"
+--  in (a+1,JST0_Ret t,[SubType t1 t])
+--merge_type a JST0_None JST0_None = (a,JST0_None,[])
+
 
 -- return all Constraints neccessary to make two lists component-wise subtypes
 makeSubtype_list :: [Type] -> [Type] -> [Constrain]

@@ -7,6 +7,8 @@ import JST0_types
 import JST0_type_aux
 import JST0_solution
 
+import Debugging
+
 --import Debug.Trace
 
 ----------------------------------
@@ -23,6 +25,7 @@ solutionAn_empty = Map.empty
 
 -- replace all TV in the given type by their solution
 solutionAn_get :: SolutionAn -> Int -> TypeAn
+solutionAn_get s a | trace 30 ("Looking up solution for " ++ show a ++ " in " ++ show s) False = undefined
 solutionAn_get s a = case Map.lookup a s of
   Just t1 -> t1
   Nothing -> (JST0P_None,I 0,I 0)
@@ -47,4 +50,6 @@ show_solutionAn :: SolutionAn -> String
 show_solutionAn s = Map.foldWithKey (\i t prv -> prv ++ show_solutionAn_one i t) "" s
 
 show_solutionAn_one :: Int -> TypeAn -> String
-show_solutionAn_one i t = (show i) ++ " -- " ++ (show t) ++ "\n"
+show_solutionAn_one i t = "    " ++ (show i) ++ " -- " ++ (show t) ++ "\n"
+
+--
