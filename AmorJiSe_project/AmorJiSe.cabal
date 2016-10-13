@@ -1,0 +1,41 @@
+name:                AmorJiSe
+version:             0.1.0.0
+synopsis:            Working copy
+description:         Please see README.md
+license:             BSD3
+author:              Daniel Franzen
+copyright:           2016 Daniel Franzen
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+
+executable AmorJiSe-exe
+  hs-source-dirs:      src
+  main-is:             TypeInference.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , language-javascript
+                     , containers
+                     , glpk-hs
+                     , deepseq
+  default-language:    Haskell2010
+  other-modules:       API_model
+                     , AnnotGen
+                     , Closure
+                     , Conditionals
+                     , ConstGen
+                     , Debugging
+                     , Extraction
+                     , JST0P_constrain
+                     , JST0P_context
+                     , JST0P_solution
+                     , JST0P_types
+                     , JST0_constrain
+                     , JST0_context
+                     , JST0_solution
+                     , JST0_type_aux
+                     , JST0_types
+                     , Maps
+                     , Res_model
