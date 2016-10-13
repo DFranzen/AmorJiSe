@@ -2,7 +2,7 @@ AmorJiSe: An amortised type inference for JavaScript source.
 
 Executing the type inference
 ----------------------------
-Launch the docker with
+The docker image has been uploaded to hub.docker.com with the id dfranzen/amorjise. Launch the docker with
   > docker run -it dfranzen/amorjise /bin/bash
 
 Launch the AmorJiSe system with
